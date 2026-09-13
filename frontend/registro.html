@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crear cuenta · Demo Auth</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="contenedor">
+    <div class="card">
+      <h1>Crear cuenta</h1>
+      <p class="subtitulo">Tu contrasena se guarda como hash, nunca en texto plano</p>
+
+      <form id="form-registro">
+        <label for="nombre">Nombre</label>
+        <input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required />
+
+        <label for="email">Correo electronico</label>
+        <input type="email" id="email" name="email" placeholder="tucorreo@ejemplo.com" required autocomplete="username" />
+
+        <label for="password">Contrasena</label>
+        <input type="password" id="password" name="password" placeholder="Minimo 8 caracteres" required minlength="8" autocomplete="new-password" />
+
+        <button type="submit" class="btn-primario" id="btn-registro">Crear cuenta</button>
+      </form>
+
+      <div id="alerta-error" class="alerta alerta--error"></div>
+      <div id="alerta-exito" class="alerta alerta--exito"></div>
+
+      <p class="texto-pie">
+        ¿Ya tienes cuenta? <a class="enlace" href="index.html">Inicia sesion</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/registro.js"></script>
+</body>
+</html>

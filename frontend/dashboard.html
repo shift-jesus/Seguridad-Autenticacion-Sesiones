@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard · Demo Auth</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="contenedor card--ancho">
+    <div class="card card--ancho">
+      <div class="header-dashboard">
+        <div>
+          <h1 id="saludo">Hola 👋</h1>
+          <span class="chip-rol" id="chip-rol">rol</span>
+        </div>
+        <button class="btn-secundario" id="btn-logout">Cerrar sesion</button>
+      </div>
+
+      <p class="subtitulo" id="info-sesion">Cargando datos de sesion...</p>
+
+      <div class="grid-info">
+        <div class="stat">
+          <span class="valor" id="stat-visitas">-</span>
+          <span class="etiqueta">Visitas (demo)</span>
+        </div>
+        <div class="stat">
+          <span class="valor" id="stat-notif">-</span>
+          <span class="etiqueta">Notificaciones (demo)</span>
+        </div>
+      </div>
+
+      <div id="seccion-admin" class="oculto">
+        <h2 style="font-size:1rem;">Panel de administrador</h2>
+        <p class="subtitulo" style="margin-bottom:8px;">Este bloque solo lo ve el rol "admin" (autorizacion)</p>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th></tr>
+          </thead>
+          <tbody id="tabla-usuarios"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2 style="font-size:1rem;">Mis notas</h2>
+        <p class="subtitulo">Cada usuario tiene sus propias notas (datos por dueno)</p>
+        <form id="form-nota" class="fila-form">
+          <input type="text" id="input-nota" placeholder="Escribe una nota..." maxlength="500" required />
+          <button type="submit" class="btn-primario btn-inline" id="btn-crear-nota">Agregar</button>
+        </form>
+        <ul id="lista-notas" class="lista-simple"></ul>
+      </div>
+
+      <div class="grid-secciones">
+        <div class="panel">
+          <h2 style="font-size:1rem;">Mi perfil</h2>
+          <p class="subtitulo">Edita los datos de tu cuenta</p>
+          <form id="form-perfil" class="col-form">
+            <label for="perfil-nombre">Nombre</label>
+            <input type="text" id="perfil-nombre" required minlength="2" />
+            <button type="submit" class="btn-secundario btn-inline" id="btn-perfil">Guardar perfil</button>
+          </form>
+        </div>
+        <div class="panel">
+          <h2 style="font-size:1rem;">Actividad reciente</h2>
+          <p class="subtitulo">Historial de acciones de tu sesion</p>
+          <ul id="lista-actividad" class="lista-simple"></ul>
+        </div>
+      </div>
+
+      <div class="panel border-top">
+        <h2 style="font-size:1rem;">Cambiar contrasena</h2>
+        <p class="subtitulo">Tras cambiarla deberas iniciar sesion de nuevo</p>
+        <form id="form-password" class="col-form">
+          <label for="pass-actual">Contrasena actual</label>
+          <input type="password" id="pass-actual" required autocomplete="current-password" />
+          <label for="pass-nueva">Contrasena nueva</label>
+          <input type="password" id="pass-nueva" required minlength="8" autocomplete="new-password" />
+          <button type="submit" class="btn-secundario btn-inline" id="btn-password">Cambiar contrasena</button>
+        </form>
+      </div>
+
+      <div id="alerta-error" class="alerta alerta--error"></div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

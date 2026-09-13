@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iniciar sesion · Demo Auth</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="contenedor">
+    <div class="card">
+      <h1>Iniciar sesion</h1>
+      <p class="subtitulo">Mini app de autenticacion con sesiones y cookies HTTP-Only</p>
+
+      <form id="form-login">
+        <label for="email">Correo electronico</label>
+        <input type="email" id="email" name="email" placeholder="estudiante@demo.com" required autocomplete="username" />
+
+        <label for="password">Contrasena</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+
+        <button type="submit" class="btn-primario" id="btn-login">Entrar</button>
+      </form>
+
+      <div id="alerta-error" class="alerta alerta--error"></div>
+      <div id="alerta-exito" class="alerta alerta--exito"></div>
+
+      <p class="texto-pie">
+        ¿No tienes cuenta? <a class="enlace" href="registro.html">Registrate</a>
+      </p>
+      <p class="texto-pie" style="margin-top:4px;">
+        Prueba con <code>estudiante@demo.com</code> / <code>Aprender123!</code><br/>
+        o <code>admin@demo.com</code> / <code>AdminSeguro123!</code>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
