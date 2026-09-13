@@ -1,56 +1,47 @@
 /**
  * dashboard.js
  * -----------------------------------------------------------------------
- * Al cargar, pide /api/auth/me. Si el backend responde 401 (sin sesion
- * valida), redirige al login. Esto es lo que "protege" esta pagina:
- * la proteccion real ocurre en el SERVIDOR (middleware requireAuth);
- * esta redireccion es solo una mejora de experiencia de usuario.
- *
- * Ademas gestiona:
- *   - Panel de administrador (solo rol admin)
- *   - Notas personales (CRUD)
- *   - Edicion de perfil y cambio de contrasena
- *   - Historial de actividad
+ * Carga /api/auth/me; si 401, redirige al login. Gestiona notas (CRUD),
+ * actividad reciente, banner de email sin verificar, 2FA, tema y logout.
  * -----------------------------------------------------------------------
  */
-
 const elSaludo = document.getElementById("saludo");
 const elChipRol = document.getElementById("chip-rol");
 const elInfoSesion = document.getElementById("info-sesion");
 const elStatVisitas = document.getElementById("stat-visitas");
 const elStatNotif = document.getElementById("stat-notif");
-const elSeccionAdmin = document.getElementById("seccion-admin");
-const elTablaUsuarios = document.getElementById("tabla-usuarios");
 const elAlertaError = document.getElementById("alerta-error");
+const elAlertaExito = document.getElementById("alerta-exito");
 const btnLogout = document.getElementById("btn-logout");
+const badgeNotif = document.getElementById("badge-notif");
+const bannerVerificar = document.getElementById("banner-verificar");
 
 const elFormNota = document.getElementById("form-nota");
 const elInputNota = document.getElementById("input-nota");
+const elInputEtiqueta = document.getElementById("input-etiqueta");
 const elListaNotas = document.getElementById("lista-notas");
-
-const elFormPerfil = document.getElementById("form-perfil");
-const elPerfilNombre = document.getElementById("perfil-nombre");
-
-const elFormPassword = document.getElementById("form-password");
-const elPassActual = document.getElementById("pass-actual");
-const elPassNueva = document.getElementById("pass-nueva");
+const buscarNotas = document.getElementById("buscar-notas");
 
 const elListaActividad = document.getElementById("lista-actividad");
 
 let usuarioActual = null;
+let misNotas = [];
 
 function formatearFecha(iso) {
   if (!iso) return "desconocida";
   return new Date(iso).toLocaleString();
 }
 
-function mostrarError(mensaje) {
-  elAlertaError.textContent = mensaje;
+function mostrarError(m) {
+  elAlertaExito.style.display = "none";
+  elAlertaError.textContent = m;
   elAlertaError.style.display = "block";
 }
-
-function ocultarError() {
+function mostrarExito(m) {
   elAlertaError.style.display = "none";
+  elAlertaExito.textContent = m;
+  elAlertaExito.style.display = "block";
+  setTimeout(() => (elAlertaExito.style.display = "none"), 4000);
 }
 
 async function cargarDashboard() {
@@ -60,21 +51,21 @@ async function cargarDashboard() {
 
     elSaludo.textContent = `Hola, ${usuario.nombre} 👋`;
     elChipRol.textContent = usuario.rol;
-    elPerfilNombre.value = usuario.nombre;
     elInfoSesion.textContent = `Sesion iniciada: ${formatearFecha(sesion.creadaEn)} · Expira: ${formatearFecha(sesion.expiraEn)}`;
+
+    if (usuario.rol === "admin") document.getElementById("lnk-admin").classList.remove("oculto");
 
     const datosDashboard = await Api.dashboard();
     elStatVisitas.textContent = datosDashboard.datos.visitas;
     elStatNotif.textContent = datosDashboard.datos.notificaciones;
+    if (datosDashboard.datos.notificacionesPendientes > 0) {
+      badgeNotif.textContent = datosDashboard.datos.notificacionesPendientes;
+      badgeNotif.classList.remove("oculto");
+    }
 
-    if (usuario.rol === "admin") {
-      elSeccionAdmin.classList.remove("oculto");
-      const { usuarios } = await Api.usuariosAdmin();
-      elTablaUsuarios.innerHTML = usuarios
-        .map(
-          (u) => `<tr><td>${u.id}</td><td>${u.nombre}</td><td>${u.email}</td><td>${u.rol}</td></tr>`
-        )
-        .join("");
+    if (usuario.email_verificado === 0) {
+      bannerVerificar.style.display = "block";
+      bannerVerificar.classList.remove("oculto");
     }
 
     await Promise.all([cargarNotas(), cargarActividad()]);
@@ -83,64 +74,114 @@ async function cargarDashboard() {
       window.location.href = "index.html";
       return;
     }
-    elAlertaError.textContent = "Ocurrio un error cargando el dashboard.";
-    elAlertaError.style.display = "block";
+    mostrarError("Ocurrio un error cargando el dashboard.");
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Notas                                                               */
-/* ------------------------------------------------------------------ */
+/* ------------------------------- Notas ------------------------------ */
 async function cargarNotas() {
-  const { notas } = await Api.notas();
+  const q = buscarNotas.value.trim();
+  const { notas } = await Api.notas(q ? { q } : {});
+  misNotas = notas;
   renderNotas(notas);
 }
 
 function renderNotas(notas) {
   if (!notas.length) {
-    elListaNotas.innerHTML = `<li class="vacio">Todavia no tienes notas.</li>`;
+    elListaNotas.innerHTML = `<li class="vacio">Sin notas. Agrega la primera en el campo de arriba.</li>`;
     return;
   }
   elListaNotas.innerHTML = notas
     .map(
       (n) => `
-        <li>
-          <div>
-            <p class="nota-texto"></p>
-            <span class="nota-fecha">${formatearFecha(n.creadoEn)}</span>
+        <li data-id="${n.id}">
+          <div class="nota-cuerpo">
+            ${n.fijada ? '<span class="nota-pin">&#128204;</span>' : ""}
+            <div>
+              <p class="nota-texto"></p>
+              <div class="nota-meta">
+                <span class="nota-fecha">${formatearFecha(n.creadoEn)}</span>
+                ${(n.etiquetas || []).map((t) => `<span class="chip-tag">#${t}</span>`).join("")}
+              </div>
+            </div>
           </div>
-          <button class="btn-mini" data-eliminar="${n.id}">Eliminar</button>
+          <div class="nota-acciones">
+            <button class="btn-mini" data-pin="${n.id}">${n.fijada ? "Desfijar" : "Fijar"}</button>
+            <button class="btn-mini" data-editar="${n.id}">Editar</button>
+            <button class="btn-mini btn-peligro" data-eliminar="${n.id}">Eliminar</button>
+          </div>
         </li>`
     )
     .join("");
 
-  const elementos = elListaNotas.querySelectorAll("li");
-  notas.forEach((n, i) => {
-    elementos[i].querySelector(".nota-texto").textContent = n.texto;
+  // Texto via textContent para evitar XSS.
+  notas.forEach((n) => {
+    const li = elListaNotas.querySelector(`li[data-id="${n.id}"]`);
+    if (li) li.querySelector(".nota-texto").textContent = n.texto;
   });
 
-  elListaNotas.querySelectorAll("[data-eliminar]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      try {
-        await Api.eliminarNota(btn.dataset.eliminar);
-        renderNotas(notas.filter((n) => n.id !== btn.dataset.eliminar));
-        await cargarActividad();
-      } catch (error) {
-        mostrarError(error.detalles?.error || "No se pudo eliminar la nota");
-      }
-    });
+  elListaNotas.querySelectorAll("[data-pin]").forEach((b) => {
+    b.addEventListener("click", () => togglePin(b.dataset.pin));
+  });
+  elListaNotas.querySelectorAll("[data-editar]").forEach((b) => {
+    b.addEventListener("click", () => editarNota(b.dataset.editar));
+  });
+  elListaNotas.querySelectorAll("[data-eliminar]").forEach((b) => {
+    b.addEventListener("click", () => eliminarNota(b.dataset.eliminar));
   });
 }
+
+async function togglePin(id) {
+  const nota = misNotas.find((n) => n.id === id);
+  if (!nota) return;
+  try {
+    await Api.actualizarNota(id, { fijada: !nota.fijada });
+    await cargarNotas();
+  } catch (e) {
+    mostrarError(e.detalles?.error || "Error al fijar la nota");
+  }
+}
+
+async function editarNota(id) {
+  const nota = misNotas.find((n) => n.id === id);
+  if (!nota) return;
+  const nuevoTexto = prompt("Editar nota", nota.texto);
+  if (nuevoTexto === null) return;
+  try {
+    await Api.actualizarNota(id, { texto: nuevoTexto.trim() });
+    await cargarNotas();
+    mostrarExito("Nota editada.");
+  } catch (e) {
+    mostrarError(e.detalles?.error || "Error al editar la nota");
+  }
+}
+
+async function eliminarNota(id) {
+  if (!confirm("Eliminar esta nota? Puedes deshacer desde la consola.")) return;
+  try {
+    const r = await Api.eliminarNota(id);
+    await cargarNotas();
+    mostrarExito(r.mensaje || "Nota eliminada.");
+  } catch (e) {
+    mostrarError(e.detalles?.error || "Error al eliminar");
+  }
+}
+
+buscarNotas.addEventListener("input", () => {
+  clearTimeout(buscarNotas._t);
+  buscarNotas._t = setTimeout(cargarNotas, 350);
+});
 
 elFormNota.addEventListener("submit", async (evento) => {
   evento.preventDefault();
   const texto = elInputNota.value.trim();
   if (!texto) return;
-
-  elFormNota.firstElementChild.disabled = true;
+  const etiqueta = elInputEtiqueta.value.trim();
+  document.getElementById("btn-crear-nota").disabled = true;
   try {
-    await Api.crearNota({ texto });
+    await Api.crearNota({ texto, etiquetas: etiqueta ? [etiqueta] : [] });
     elInputNota.value = "";
+    elInputEtiqueta.value = "";
     await cargarNotas();
     await cargarActividad();
   } catch (error) {
@@ -150,64 +191,18 @@ elFormNota.addEventListener("submit", async (evento) => {
   }
 });
 
-/* ------------------------------------------------------------------ */
-/* Perfil                                                              */
-/* ------------------------------------------------------------------ */
+/* ------------------------------ Actividad --------------------------- */
 async function cargarActividad() {
-  const { actividad } = await Api.actividad();
+  const { actividad } = await Api.actividad({ limite: 15 });
   elListaActividad.innerHTML = actividad.length
     ? actividad
         .map(
-          (a) => `<li><span class="actividad-accion"></span> <span class="nota-fecha">${formatearFecha(a.fecha)}</span></li>`
+          (a) =>
+            `<li><span class="actividad-accion">${a.accion.replace(/</g, "&lt;")}</span> <span class="nota-fecha">${formatearFecha(a.fecha)}</span></li>`
         )
         .join("")
     : `<li class="vacio">Sin actividad reciente.</li>`;
-
-  actividad.forEach((a, i) => {
-    const items = elListaActividad.querySelectorAll("li");
-    items[i].querySelector(".actividad-accion").textContent = a.accion;
-  });
 }
-
-elFormPerfil.addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-  const boton = document.getElementById("btn-perfil");
-  boton.disabled = true;
-
-  try {
-    const resultado = await Api.actualizarPerfil({ nombre: elPerfilNombre.value.trim() });
-    usuarioActual = resultado.usuario;
-    elSaludo.textContent = `Hola, ${usuarioActual.nombre} 👋`;
-    await cargarActividad();
-    ocultarError();
-  } catch (error) {
-    mostrarError(error.detalles?.error || "No se pudo actualizar el perfil");
-  } finally {
-    boton.disabled = false;
-  }
-});
-
-/* ------------------------------------------------------------------ */
-/* Cambiar contrasena                                                  */
-/* ------------------------------------------------------------------ */
-elFormPassword.addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-  const boton = document.getElementById("btn-password");
-  boton.disabled = true;
-
-  try {
-    await Api.cambiarPassword({
-      passwordActual: elPassActual.value,
-      passwordNueva: elPassNueva.value,
-    });
-    // La sesion se destruye en el servidor: se obliga a volver al login.
-    elListaActividad.innerHTML = "";
-    window.location.href = "index.html";
-  } catch (error) {
-    boton.disabled = false;
-    mostrarError(error.detalles?.error || "No se pudo cambiar la contrasena");
-  }
-});
 
 btnLogout.addEventListener("click", async () => {
   btnLogout.disabled = true;

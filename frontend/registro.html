@@ -10,9 +10,9 @@
   <div class="contenedor">
     <div class="card">
       <h1>Crear cuenta</h1>
-      <p class="subtitulo">Tu contrasena se guarda como hash, nunca en texto plano</p>
+      <p class="subtitulo">Tu contrasena se guarda hasheada (bcrypt), nunca en texto plano</p>
 
-      <form id="form-registro">
+      <form id="form-registro" novalidate>
         <label for="nombre">Nombre</label>
         <input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required />
 
@@ -20,7 +20,17 @@
         <input type="email" id="email" name="email" placeholder="tucorreo@ejemplo.com" required autocomplete="username" />
 
         <label for="password">Contrasena</label>
-        <input type="password" id="password" name="password" placeholder="Minimo 8 caracteres" required minlength="8" autocomplete="new-password" />
+        <input type="password" id="password" name="password" placeholder="Min. 8, mayuscula, numero y simbolo" required minlength="8" autocomplete="new-password" />
+        <div class="fuerza" id="fuerza-medidor">
+          <span id="fuerza-barra"></span>
+        </div>
+        <ul class="requisitos" id="req-lista">
+          <li id="req-len">8+ caracteres</li>
+          <li id="req-may">Mayuscula</li>
+          <li id="req-min">Minuscula</li>
+          <li id="req-num">Numero</li>
+          <li id="req-sim">Simbolo</li>
+        </ul>
 
         <button type="submit" class="btn-primario" id="btn-registro">Crear cuenta</button>
       </form>
@@ -33,7 +43,6 @@
       </p>
     </div>
   </div>
-
   <script src="js/api.js"></script>
   <script src="js/registro.js"></script>
 </body>

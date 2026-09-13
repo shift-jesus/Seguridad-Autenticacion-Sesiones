@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verificar email · Demo Auth</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="contenedor">
+    <div class="card">
+      <h1>Verificacion de email</h1>
+      <p class="subtitulo" id="msg">Procesando...</p>
+      <div id="alerta-error" class="alerta alerta--error"></div>
+      <div id="alerta-exito" class="alerta alerta--exito"></div>
+      <p class="texto-pie"><a class="enlace" href="index.html">Ir al login</a></p>
+    </div>
+  </div>
+  <script>
+    (async function(){
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const msg = document.getElementById('msg');
+      const err = document.getElementById('alerta-error');
+      const ok = document.getElementById('alerta-exito');
+      if(!token){ msg.textContent='Token no encontrado.'; return; }
+      try{
+        const r = await fetch('/api/auth/verificar/'+token);
+        const d = await r.json();
+        if(!r.ok) throw d;
+        ok.textContent=d.mensaje||'Email verificado correctamente';
+        ok.style.display='block';
+        msg.textContent='';
+      }catch(e){
+        msg.textContent='';
+        err.textContent=e.mensaje||e.error||'Token invalido o expirado';
+        err.style.display='block';
+      }
+    })();
+  </script>
+</body>
+</html>

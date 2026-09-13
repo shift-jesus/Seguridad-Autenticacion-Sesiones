@@ -1,53 +1,109 @@
 /**
  * routes/notas.js
  * -----------------------------------------------------------------------
- * NOTAS PERSONALES (CRUD).
+ * NOTAS PERSONALES (CRUD + extras).
  *
- * Demuestra AUTORIZACION a nivel de recurso/dueno de los datos:
- * aunque dos usuarios esten autenticados, el servidor solo devuelve
- * o modifica las notas del usuario que hace la peticion (se obtienen
- * a partir de req.session.usuarioId, NUNCA de un campo enviado por
- * el cliente que se pueda manipular).
+ * Autorizacion a nivel de dueno: el usuario_id SIEMPRE sale de la sesion
+ * (req.session.usuarioId), jamas de datos enviados por el cliente.
  *
- *   GET    /api/notas          -> mis notas
- *   POST   /api/notas          -> crear una nota
- *   DELETE /api/notas/:id      -> eliminar SOLO una nota propia
+ *   GET    /api/notas?q=&tag=&soloFijadas=1   -> mis notas (con filtros)
+ *   POST   /api/notas                          -> crear
+ *   PUT    /api/notas/:id                      -> editar texto/etiquetas/fijada
+ *   DELETE /api/notas/:id                      -> borrado LOGICO (deshacible)
+ *   POST   /api/notas/:id/restaurar            -> deshacer el borrado
  * -----------------------------------------------------------------------
  */
 const express = require("express");
+const { query } = require("express-validator");
+
 const { requireAuth } = require("../middleware/auth");
-const { crearNota, listarNotas, eliminarNota, registrarActividad } = require("../utils/db");
+const asyncHandler = require("../middleware/asyncHandler");
+const { HttpError, manejarValidaciones } = require("../middleware/errores");
+const { validarNotaTexto, validarNotaEtiquetas } = require("../services/validadores");
+const notasRepo = require("../database/repositories/notas");
+const actividadRepo = require("../database/repositories/actividad");
 
 const router = express.Router();
+router.use(requireAuth);
 
-router.get("/", requireAuth, (req, res) => {
-  res.json({ notas: listarNotas(req.session.usuarioId) });
-});
+const validarFiltros = [
+  query("q").optional().trim().isLength({ max: 80 }).withMessage("Busqueda demasiado larga"),
+  query("tag").optional().trim().isLength({ max: 30 }).withMessage("Etiqueta invalida"),
+  query("soloFijadas").optional().isIn(["1", "true"]).withMessage("soloFijadas invalido"),
+  query("incluirBorradas").optional().isIn(["1", "true"]).withMessage("incluirBorradas invalido"),
+];
 
-router.post("/", requireAuth, (req, res) => {
-  const { texto } = req.body;
+router.get(
+  "/",
+  validarFiltros,
+  asyncHandler(async (req, res) => {
+    const httpErr = manejarValidaciones(req);
+    if (httpErr) throw httpErr;
 
-  if (!texto || texto.trim().length < 1) {
-    return res.status(400).json({ error: "La nota no puede estar vacia" });
-  }
-  if (texto.length > 500) {
-    return res.status(400).json({ error: "La nota no puede superar los 500 caracteres" });
-  }
+    const borradasIncluidas = ["1", "true"].includes(req.query.incluirBorradas);
+    const filtros = {
+      q: req.query.q?.trim() || "",
+      tag: req.query.tag?.trim() || "",
+      soloFijadas: ["1", "true"].includes(req.query.soloFijadas),
+      incluirBorradas: borradasIncluidas,
+    };
+    const notas = notasRepo.listar(req.session.usuarioId, filtros);
+    return res.json({ notas });
+  })
+);
 
-  const nota = crearNota(req.session.usuarioId, texto.trim());
-  registrarActividad(req.session.usuarioId, `Creo una nota (#${nota.id})`);
-  return res.status(201).json({ mensaje: "Nota creada", nota });
-});
+router.post(
+  "/",
+  validarNotaTexto,
+  validarNotaEtiquetas,
+  asyncHandler(async (req, res) => {
+    const httpErr = manejarValidaciones(req);
+    if (httpErr) throw httpErr;
 
-router.delete("/:id", requireAuth, (req, res) => {
-  const eliminada = eliminarNota(req.session.usuarioId, req.params.id);
-  if (!eliminada) {
-    // Mismo mensaje sin importar si la nota no existe o es de otro usuario:
-    // evita filtrar informacion de datos ajenos.
-    return res.status(404).json({ error: "Nota no encontrada" });
-  }
-  registrarActividad(req.session.usuarioId, `Elimino una nota (#${eliminada.id})`);
-  return res.json({ mensaje: "Nota eliminada", nota: eliminada });
-});
+    const { texto, etiquetas } = req.body;
+    const nota = notasRepo.crear(req.session.usuarioId, texto.trim(), etiquetas || []);
+    actividadRepo.registrar(req.session.usuarioId, `Creo una nota (#${nota.id})`);
+    return res.status(201).json({ mensaje: "Nota creada", nota });
+  })
+);
+
+router.put(
+  "/:id",
+  validarNotaTexto.optional(),
+  validarNotaEtiquetas,
+  asyncHandler(async (req, res) => {
+    const httpErr = manejarValidaciones(req);
+    if (httpErr) throw httpErr;
+
+    const nota = notasRepo.actualizar(req.session.usuarioId, req.params.id, {
+      texto: req.body.texto?.trim(),
+      etiquetas: req.body.etiquetas,
+      fijada: typeof req.body.fijada === "boolean" ? req.body.fijada : undefined,
+    });
+    if (!nota) throw new HttpError(404, "Nota no encontrada");
+    actividadRepo.registrar(req.session.usuarioId, `Edito una nota (#${nota.id})`);
+    return res.json({ mensaje: "Nota actualizada", nota });
+  })
+);
+
+router.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const nota = notasRepo.eliminarSuave(req.session.usuarioId, req.params.id);
+    if (!nota) throw new HttpError(404, "Nota no encontrada");
+    actividadRepo.registrar(req.session.usuarioId, `Elimino una nota (#${nota.id})`);
+    return res.json({ mensaje: "Nota eliminada (puedes deshacer)", nota });
+  })
+);
+
+router.post(
+  "/:id/restaurar",
+  asyncHandler(async (req, res) => {
+    const nota = notasRepo.restaurar(req.session.usuarioId, req.params.id);
+    if (!nota) throw new HttpError(404, "Nota no encontrada");
+    actividadRepo.registrar(req.session.usuarioId, `Restauro una nota (#${nota.id})`);
+    return res.json({ mensaje: "Nota restaurada", nota });
+  })
+);
 
 module.exports = router;

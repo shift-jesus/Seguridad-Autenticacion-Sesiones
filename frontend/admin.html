@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panel admin · Demo Auth</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="contenedor card--ancho">
+    <div class="card card--ancho">
+      <div class="header-dashboard">
+        <div>
+          <h1>Panel de administrador</h1>
+          <span class="chip-rol">admin</span>
+        </div>
+        <button class="btn-secundario" id="btn-volver">&#8592; Volver</button>
+      </div>
+
+      <div class="grid-info" id="grid-stats">
+        <div class="stat"><span class="valor" id="st-usuarios">-</span><span class="etiqueta">Usuarios</span></div>
+        <div class="stat"><span class="valor" id="st-notas">-</span><span class="etiqueta">Notas</span></div>
+        <div class="stat"><span class="valor" id="st-2fa">-</span><span class="etiqueta">2FA activo</span></div>
+        <div class="stat"><span class="valor" id="st-act24">-</span><span class="etiqueta">Actividad 24h</span></div>
+      </div>
+
+      <div class="barra-busqueda">
+        <input type="search" id="buscar-users" placeholder="Buscar por nombre o email" />
+        <select id="filtro-rol">
+          <option value="">Todos los roles</option>
+          <option value="usuario">Usuario</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
+        </thead>
+        <tbody id="tabla-usuarios"></tbody>
+      </table>
+      <div class="paginacion" id="paginacion"></div>
+
+      <div id="alerta-error" class="alerta alerta--error"></div>
+      <div id="alerta-exito" class="alerta alerta--exito"></div>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
