@@ -1,8 +1,10 @@
+# Node.js
 node_modules/
-.env
 *.log
+
+# Entorno
+.env
+.env.*
+
+# Sistema
 .DS_Store
-cookies.txt
-*.db
-*.db-shm
-*.db-wal

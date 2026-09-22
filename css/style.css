@@ -1,0 +1,83 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a2e;
+}
+
+main {
+  background: #fff;
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+h1 { font-size: 1.4rem; text-align: center; margin-bottom: 0.25rem; }
+.subtitle { text-align: center; color: #6b7280; font-size: 0.85rem; margin-bottom: 1.5rem; }
+fieldset { border: none; }
+
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+input:focus {
+  outline: 2px solid #2563eb;
+  border-color: transparent;
+}
+
+button {
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover { background: #1d4ed8; }
+
+button.secondary {
+  background: #ef4444;
+  margin-top: 1rem;
+}
+
+button.secondary:hover { background: #dc2626; }
+
+.error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+
+.switch { text-align: center; margin-top: 1rem; font-size: 0.85rem; }
+.switch a { color: #2563eb; text-decoration: none; font-weight: 600; }
+
+.dashboard { text-align: center; }
+.dashboard h2 { margin-bottom: 0.25rem; }
+.dashboard p { color: #6b7280; margin-bottom: 1rem; }
