@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini App Segura - VERSIÓN CON ERRORES (demo)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1a2e;
+  }
+  main {
+    background: #fff;
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+  h1 { font-size: 1.4rem; text-align: center; margin-bottom: 0.25rem; }
+  .subtitle { text-align: center; color: #6b7280; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  fieldset { border: none; }
+  label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; }
+  input {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.9rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+  input:focus { outline: 2px solid #2563eb; border-color: transparent; }
+  button {
+    width: 100%;
+    padding: 0.7rem;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.secondary { background: #ef4444; margin-top: 1rem; }
+  button.secondary:hover { background: #dc2626; }
+  .error {
+    background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;
+    padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8rem; margin-bottom: 0.9rem;
+  }
+  .switch { text-align: center; margin-top: 1rem; font-size: 0.85rem; }
+  .switch a { color: #2563eb; text-decoration: none; font-weight: 600; }
+  .dashboard { text-align: center; }
+  .dashboard h2 { margin-bottom: 0.25rem; }
+  .dashboard p { color: #6b7280; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<main>
+  <section id="view-register">
+    <h1>Crear cuenta</h1>
+    <p class="subtitle">Registro de usuario</p>
+    <div id="register-error" class="error" hidden></div>
+    <form id="form-register">
+      <label for="reg-name">Nombre</label>
+      <input type="text" id="reg-name" maxlength="50" autocomplete="name">
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" maxlength="100" autocomplete="email">
+      <label for="reg-password">Contraseña</label>
+      <input type="password" id="reg-password" maxlength="64" autocomplete="new-password">
+      <button type="submit">Registrarme</button>
+    </form>
+    <p class="switch">¿Ya tienes cuenta? <a href="#/login">Inicia sesión</a></p>
+  </section>
+
+  <section id="view-login" hidden>
+    <h1>Bienvenido</h1>
+    <p class="subtitle">Inicia sesión en tu cuenta</p>
+    <div id="login-error" class="error" hidden></div>
+    <form id="form-login">
+      <label for="log-email">Email</label>
+      <input type="email" id="log-email" maxlength="100" autocomplete="email">
+      <label for="log-password">Contraseña</label>
+      <input type="password" id="log-password" maxlength="64" autocomplete="current-password">
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="switch">¿No tienes cuenta? <a href="#/registro">Regístrate</a></p>
+  </section>
+
+  <section id="view-dashboard" class="dashboard" hidden>
+    <h1>Panel de control</h1>
+    <h2 id="dashboard-welcome">Bienvenido</h2>
+    <p class="subtitle">Tu sesión está activa.</p>
+    <button id="btn-logout" class="secondary">Cerrar Sesión</button>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const CLAVE_USUARIOS = "usuarios";
+const CLAVE_SESION = "app_sesion";
+const DURACION_SESION = 30 * 60 * 1000;
+
+function leerUsuarios() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_USUARIOS)) || []; }
+  catch { return []; }
+}
+
+function guardarUsuarios(lista) {
+  localStorage.setItem(CLAVE_USUARIOS, JSON.stringify(lista));
+}
+
+async function hashSHA256(texto) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function hexAleatorio(bytes) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return [...arr].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+const hashClave = (clave, salt) => hashSHA256(salt + ":" + clave);
+
+const nombreValido = (n) => /^[A-Za-zÁÉÍÓÚáéíóúñÑ ]{2,50}$/.test(n);
+const emailValido = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+const claveValida = (p) => p.length >= 8 && p.length <= 64;
+
+function error(id, mensaje) {
+  const caja = document.getElementById(id);
+  caja.textContent = mensaje;
+  caja.hidden = false;
+}
+
+const buscar = (email) =>
+  leerUsuarios().find(u => u.email.toLowerCase() === email.toLowerCase());
+
+function iniciarSesion(usuario) {
+  sessionStorage.setItem(CLAVE_SESION, JSON.stringify({
+    token: hexAleatorio(32),
+    email: usuario.email,
+  }));
+}
+
+function sesionActiva() {
+  try {
+    const sesion = JSON.parse(sessionStorage.getItem(CLAVE_SESION));
+    if (!sesion) return null;
+    return buscar(sesion.email);
+  } catch { return null; }
+}
+
+function cerrarSesion() {
+  sessionStorage.removeItem(CLAVE_SESION);
+}
+
+function mostrar(vista) {
+  document.getElementById("view-login").hidden = vista !== "login";
+  document.getElementById("view-register").hidden = vista !== "register";
+  document.getElementById("view-dashboard").hidden = vista !== "dashboard";
+  if (vista === "dashboard") {
+    document.getElementById("dashboard-welcome").innerHTML =
+      "Bienvenido " + (sesionActiva()?.nombre || "visitante");
+  }
+}
+
+function router() {
+  const ruta = location.hash.replace("#", "") || "/login";
+  if (ruta === "/dashboard") {
+    mostrar("dashboard");
+  } else if (ruta === "/registro") {
+    mostrar("register");
+  } else {
+    location.hash = "#/login";
+    mostrar("login");
+  }
+}
+window.addEventListener("hashchange", router);
+
+document.getElementById("form-register").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nombre = document.getElementById("reg-name").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  const clave = document.getElementById("reg-password").value;
+
+  if (!nombre || !email || !clave) return error("register-error", "Completa todos los campos.");
+  if (!nombreValido(nombre)) return error("register-error", "Nombre: solo letras y espacios (2-50).");
+  if (!emailValido(email)) return error("register-error", "Email no válido.");
+  if (!claveValida(clave)) return error("register-error", "Clave: entre 8 y 64 caracteres.");
+  if (buscar(email)) return error("register-error", "Ese email ya está registrado.");
+
+  const lista = leerUsuarios();
+  lista.push({ nombre, email: email.toLowerCase(), password: clave });
+  guardarUsuarios(lista);
+
+  iniciarSesion(buscar(email));
+  location.hash = "#/dashboard";
+});
+
+document.getElementById("form-login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("log-email").value.trim();
+  const clave = document.getElementById("log-password").value;
+
+  if (!email || !clave) return error("login-error", "Completa todos los campos.");
+
+  const usuario = buscar(email);
+  if (!usuario) return error("login-error", "El email no está registrado.");
+  if (usuario.password !== clave)
+    return error("login-error", "Contraseña incorrecta.");
+
+  iniciarSesion(usuario);
+  location.hash = "#/dashboard";
+});
+
+document.getElementById("btn-logout").addEventListener("click", () => {
+  cerrarSesion();
+  location.hash = "#/login";
+});
+
+router();
+</script>
+</body>
+</html>
